@@ -28,10 +28,10 @@ import (
 	"strings"
 
 	"cloud.google.com/go/spanner"
+	"github.com/roryq/yo/generator"
+	"github.com/roryq/yo/internal"
+	"github.com/roryq/yo/loaders"
 	"github.com/spf13/cobra"
-	"go.mercari.io/yo/generator"
-	"go.mercari.io/yo/internal"
-	"go.mercari.io/yo/loaders"
 )
 
 const (
