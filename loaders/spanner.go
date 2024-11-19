@@ -31,7 +31,7 @@ import (
 	"github.com/kenshaw/snaker"
 	"google.golang.org/api/iterator"
 
-	"go.mercari.io/yo/models"
+	"github.com/roryq/yo/models"
 )
 
 func NewSpannerLoader(client *spanner.Client) *SpannerLoader {

@@ -19,7 +19,7 @@
 
 package internal
 
-import "go.mercari.io/yo/models"
+import "github.com/roryq/yo/models"
 
 // Field contains field information.
 type Field struct {

@@ -27,7 +27,7 @@ import (
 	"github.com/cloudspannerecosystem/memefish/ast"
 	"github.com/cloudspannerecosystem/memefish/token"
 
-	"go.mercari.io/yo/models"
+	"github.com/roryq/yo/models"
 )
 
 func NewSpannerLoaderFromDDL(fpath string) (*SpannerLoaderFromDDL, error) {

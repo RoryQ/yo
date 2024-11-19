@@ -20,8 +20,8 @@
 package cmd
 
 import (
+	"github.com/roryq/yo/generator"
 	"github.com/spf13/cobra"
-	"go.mercari.io/yo/generator"
 )
 
 var createTemplatePath string

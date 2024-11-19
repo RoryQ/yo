@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"go.mercari.io/yo/models"
+	"github.com/roryq/yo/models"
 )
 
 func Test_setIndexesToTables(t *testing.T) {
