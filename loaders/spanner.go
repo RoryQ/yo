@@ -21,6 +21,7 @@ package loaders
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -28,8 +29,9 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/kenshaw/snaker"
-	"go.mercari.io/yo/models"
 	"google.golang.org/api/iterator"
+
+	"go.mercari.io/yo/models"
 )
 
 func NewSpannerLoader(client *spanner.Client) *SpannerLoader {
@@ -89,6 +91,16 @@ func (s *SpannerLoader) IndexList(table string) ([]*models.Index, error) {
 }
 
 func (s *SpannerLoader) IndexColumnList(table string, index string) ([]*models.IndexColumn, error) {
+	if index == "PRIMARY_KEY" {
+		view, err := SpanView(s.client, table)
+		if err != nil {
+			return nil, err
+		}
+		if view != nil {
+			return SpanIndexColumns(s.client, firstOrDefault(view.BaseTables), index)
+		}
+	}
+
 	return SpanIndexColumns(s.client, table, index)
 }
 
@@ -208,10 +220,10 @@ func SpanParseType(dt string, nullable bool) (int, string, string) {
 func spanTables(client *spanner.Client) ([]*models.Table, error) {
 	ctx := context.Background()
 
-	const sqlstr = `SELECT ` +
-		`TABLE_NAME ` +
-		`FROM INFORMATION_SCHEMA.TABLES ` +
-		`WHERE TABLE_SCHEMA = ""`
+	const sqlstr = `SELECT 
+		TABLE_NAME, TABLE_TYPE 
+		FROM INFORMATION_SCHEMA.TABLES 
+		WHERE TABLE_SCHEMA = ""`
 	stmt := spanner.NewStatement(sqlstr)
 	iter := client.Single().Query(ctx, stmt)
 	defer iter.Stop()
@@ -228,6 +240,9 @@ func spanTables(client *spanner.Client) ([]*models.Table, error) {
 
 		var t models.Table
 		if err := row.ColumnByName("TABLE_NAME", &t.TableName); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("TABLE_TYPE", &t.Type); err != nil {
 			return nil, err
 		}
 
@@ -400,4 +415,45 @@ func SpanIndexColumns(client *spanner.Client, table string, index string) ([]*mo
 func SpanValidateCustomType(dataType string, customType string) bool {
 	// No custom type validation now
 	return true
+}
+
+func SpanView(client *spanner.Client, viewName string) (*models.TableView, error) {
+	ctx := context.Background()
+
+	// sql query
+	const sqlstr = `SELECT 
+		TABLE_NAME, VIEW_DEFINITION 
+		FROM INFORMATION_SCHEMA.VIEWS 
+		WHERE TABLE_SCHEMA = "" AND TABLE_NAME = @viewName `
+
+	stmt := spanner.NewStatement(sqlstr)
+	stmt.Params["viewName"] = viewName
+	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
+
+	row, err := iter.Next()
+	if err != nil {
+		if errors.Is(err, iterator.Done) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var viewDef string
+	if err := row.ColumnByName("VIEW_DEFINITION", &viewDef); err != nil {
+		return nil, err
+	}
+
+	ddl := fmt.Sprintf(`create view %s sql security invoker as %s`, viewName, viewDef)
+
+	tableSource, err := baseTablesForViewDDL(ddl)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.TableView{
+		ViewName:   viewName,
+		BaseTables: tableSource,
+	}, nil
+
 }
