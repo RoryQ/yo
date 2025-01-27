@@ -26,6 +26,11 @@ type Table struct {
 	ManualPk  bool   // manual_pk
 }
 
+type TableView struct {
+	ViewName   string
+	BaseTables []string // Table the view is based on
+}
+
 // Column represents column info.
 type Column struct {
 	FieldOrdinal int    // field_ordinal

@@ -26,7 +26,8 @@ import (
 	parser "github.com/cloudspannerecosystem/memefish"
 	"github.com/cloudspannerecosystem/memefish/ast"
 	"github.com/cloudspannerecosystem/memefish/token"
-	"go.mercari.io/yo/models"
+
+	"github.com/roryq/yo/models"
 )
 
 func NewSpannerLoaderFromDDL(fpath string) (*SpannerLoaderFromDDL, error) {
@@ -35,7 +36,7 @@ func NewSpannerLoaderFromDDL(fpath string) (*SpannerLoaderFromDDL, error) {
 		return nil, err
 	}
 
-	tables := make(map[string]table)
+	tables := make(map[string]tableOrView)
 	ddls, err := (&parser.Parser{
 		Lexer: &parser.Lexer{
 			File: &token.File{FilePath: fpath, Buffer: string(b)},
@@ -62,19 +63,24 @@ func NewSpannerLoaderFromDDL(fpath string) (*SpannerLoaderFromDDL, error) {
 				continue
 			}
 			return nil, fmt.Errorf("stmt should be CreateTable, CreateIndex or AlterTableAddConstraint, but got '%s'", ddl.SQL())
+		case *ast.CreateView:
+			v := tables[val.Name.Name]
+			v.createView = val
+			tables[val.Name.Name] = v
 		}
 	}
 
 	return &SpannerLoaderFromDDL{tables: tables}, nil
 }
 
-type table struct {
+type tableOrView struct {
 	createTable   *ast.CreateTable
 	createIndexes []*ast.CreateIndex
+	createView    *ast.CreateView
 }
 
 type SpannerLoaderFromDDL struct {
-	tables map[string]table
+	tables map[string]tableOrView
 }
 
 func (s *SpannerLoaderFromDDL) ParamN(n int) string {
@@ -181,6 +187,15 @@ func (s *SpannerLoaderFromDDL) primaryKeyColumnList(table string) ([]*models.Ind
 		return nil, nil
 	}
 
+	// lookup PK for read-only view
+	if tbl.createView != nil {
+		sourceTable, err := baseTablesForViewDDL(tbl.createView.SQL())
+		if err != nil {
+			return nil, err
+		}
+		tbl = s.tables[firstOrDefault(sourceTable)]
+	}
+
 	var cols []*models.IndexColumn
 	for i, key := range tbl.createTable.PrimaryKeys {
 		cols = append(cols, &models.IndexColumn{
@@ -190,4 +205,29 @@ func (s *SpannerLoaderFromDDL) primaryKeyColumnList(table string) ([]*models.Ind
 	}
 
 	return cols, nil
+}
+
+func baseTablesForViewDDL(ddlString string) ([]string, error) {
+	p := &parser.Parser{Lexer: &parser.Lexer{File: &token.File{Buffer: ddlString}}}
+	ddl, err := p.ParseDDL()
+	if err != nil {
+		return nil, err
+	}
+	from := ddl.(*ast.CreateView).Query.(*ast.Select).From.Source
+
+	switch t := from.(type) {
+	case *ast.TableName:
+		return []string{t.Table.Name}, nil
+	case *ast.Join:
+		return nil, fmt.Errorf("view with join is not supported")
+	default:
+		return nil, fmt.Errorf("unknown source type: %T", from)
+	}
+}
+
+func firstOrDefault[T any](s []T) T {
+	if len(s) == 0 {
+		return *new(T)
+	}
+	return s[0]
 }

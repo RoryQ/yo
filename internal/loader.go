@@ -26,8 +26,9 @@ import (
 	"strings"
 
 	"github.com/kenshaw/snaker"
-	"go.mercari.io/yo/models"
 	"gopkg.in/yaml.v2"
+
+	"github.com/roryq/yo/models"
 )
 
 type loaderImpl interface {

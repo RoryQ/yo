@@ -1,4 +1,4 @@
-module go.mercari.io/yo
+module github.com/roryq/yo
 
 go 1.21
 
