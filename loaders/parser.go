@@ -232,13 +232,23 @@ func (s *SpannerLoaderFromDDL) primaryKeyColumnList(table string) ([]*models.Ind
 		return nil, nil
 	}
 
-	// lookup PK for read-only view
-	if tbl.createView != nil {
+	// Walk the view chain to find the underlying base table.
+	visited := map[string]struct{}{}
+	for tbl.createView != nil {
+		if _, seen := visited[table]; seen {
+			return nil, fmt.Errorf("circular view reference detected at %q", table)
+		}
+		visited[table] = struct{}{}
+
 		sourceTable, err := baseTablesForViewDDL(tbl.createView.SQL())
 		if err != nil {
 			return nil, err
 		}
-		tbl = s.tables[firstOrDefault(sourceTable)]
+		table = firstOrDefault(sourceTable)
+		tbl, ok = s.tables[table]
+		if !ok {
+			return nil, nil
+		}
 	}
 
 	var cols []*models.IndexColumn
