@@ -94,16 +94,34 @@ func (s *SpannerLoader) IndexList(table string) ([]*models.Index, error) {
 
 func (s *SpannerLoader) IndexColumnList(table string, index string) ([]*models.IndexColumn, error) {
 	if index == "PRIMARY_KEY" {
-		view, err := SpanView(s.client, table)
+		resolved, err := s.resolveToBaseTable(table, map[string]struct{}{})
 		if err != nil {
 			return nil, err
 		}
-		if view != nil {
-			return SpanIndexColumns(s.client, firstOrDefault(view.BaseTables), index)
+		if resolved != table {
+			return SpanIndexColumns(s.client, resolved, index)
 		}
 	}
 
 	return SpanIndexColumns(s.client, table, index)
+}
+
+// resolveToBaseTable walks the view chain until it finds a real table, guarding
+// against circular references.
+func (s *SpannerLoader) resolveToBaseTable(table string, visited map[string]struct{}) (string, error) {
+	if _, seen := visited[table]; seen {
+		return "", fmt.Errorf("circular view reference detected at %q", table)
+	}
+	visited[table] = struct{}{}
+
+	view, err := SpanView(s.client, table)
+	if err != nil {
+		return "", err
+	}
+	if view == nil {
+		return table, nil
+	}
+	return s.resolveToBaseTable(firstOrDefault(view.BaseTables), visited)
 }
 
 var lengthRegexp = regexp.MustCompile(`\(([0-9]+|MAX)\)$`)
