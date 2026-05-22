@@ -128,14 +128,17 @@ func new{{ .Name }}_Decoder(cols []string) func(*spanner.Row) (*{{ .Name }}, err
 	}
 }
 
+{{- if ne .Table.Type "VIEW" }}
 // Insert returns a Mutation to insert a row into a table. If the row already
 // exists, the write or transaction fails.
 func ({{ $short }} *{{ .Name }}) Insert(ctx context.Context) *spanner.Mutation {
 	values, _ := {{ $short }}.columnsToValues({{ .Name }}WritableColumns())
 	return spanner.Insert("{{ $table }}", {{ .Name }}WritableColumns(), values)
 }
+{{- end }}
 
 {{ if ne (fieldnames .Fields $short .PrimaryKeyFields) "" }}
+{{- if ne .Table.Type "VIEW" }}
 // Update returns a Mutation to update a row in a table. If the row does not
 // already exist, the write or transaction fails.
 func ({{ $short }} *{{ .Name }}) Update(ctx context.Context) *spanner.Mutation {
@@ -163,14 +166,39 @@ func ({{ $short }} *{{ .Name }}) UpdateColumns(ctx context.Context, cols ...stri
 
 	return spanner.Update("{{ $table }}", colsWithPKeys, values), nil
 }
+{{- end }}
 
 // Find{{ .Name }} gets a {{ .Name }} by primary key
 func Find{{ .Name }}(ctx context.Context, db YORODB{{ gocustomparamlist .PrimaryKeyFields true true }}) (*{{ .Name }}, error) {
+	{{- if eq .Table.Type "VIEW" }}
+	const sqlstr = "SELECT " +
+		"{{ escapedcolnames .Fields }} " +
+		"FROM {{ $table }} " +
+		"WHERE {{ colnamesquery .PrimaryKeyFields " AND " }}"
+	stmt := spanner.NewStatement(sqlstr)
+	{{- range $i, $f := .PrimaryKeyFields }}
+		{{- if $f.CustomType }}
+			stmt.Params["param{{ $i }}"] = {{ $f.Type }}({{ goparamname $f.Name }})
+		{{- else }}
+			stmt.Params["param{{ $i }}"] = {{ goparamname $f.Name }}
+		{{- end }}
+	{{- end}}
+	iter := db.Query(ctx, stmt)
+	defer iter.Stop()
+	row, err := iter.Next()
+	if err != nil {
+		if err == iterator.Done {
+			return nil, newErrorWithCode(codes.NotFound, "Find{{ .Name }}", "{{ $table }}", err)
+		}
+		return nil, newError("Find{{ .Name }}", "{{ $table }}", err)
+	}
+	{{- else }}
 	key := spanner.Key{ {{ gocustomparamlist .PrimaryKeyFields false false }} }
 	row, err := db.ReadRow(ctx, "{{ $table }}", key, {{ .Name }}Columns())
 	if err != nil {
 		return nil, newError("Find{{ .Name }}", "{{ $table }}", err)
 	}
+	{{- end }}
 
 	decoder := new{{ .Name }}_Decoder({{ .Name}}Columns())
 	{{ $short }}, err := decoder(row)
@@ -181,6 +209,7 @@ func Find{{ .Name }}(ctx context.Context, db YORODB{{ gocustomparamlist .Primary
 	return {{ $short }}, nil
 }
 
+{{- if ne .Table.Type "VIEW" }}
 // Read{{ .Name }} retrieves multiples rows from {{ .Name }} by KeySet as a slice.
 func Read{{ .Name }}(ctx context.Context, db YORODB, keys spanner.KeySet) ([]*{{ .Name }}, error) {
 	var res []*{{ .Name }}
@@ -203,10 +232,13 @@ func Read{{ .Name }}(ctx context.Context, db YORODB, keys spanner.KeySet) ([]*{{
 
 	return res, nil
 }
+{{- end }}
 {{ end }}
 
+{{- if ne .Table.Type "VIEW" }}
 // Delete deletes the {{ .Name }} from the database.
 func ({{ $short }} *{{ .Name }}) Delete(ctx context.Context) *spanner.Mutation {
 	values, _ := {{ $short }}.columnsToValues({{ .Name }}PrimaryKeys())
 	return spanner.Delete("{{ $table }}", spanner.Key(values))
 }
+{{- end }}

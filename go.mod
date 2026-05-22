@@ -1,8 +1,6 @@
 module github.com/roryq/yo
 
-go 1.23.0
-
-toolchain go1.23.5
+go 1.25.0
 
 require (
 	cloud.google.com/go v0.118.3
@@ -47,6 +45,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/jessevdk/go-assets-builder v0.0.0-20130903091706-b8483521738f // indirect
+	github.com/jessevdk/go-flags v1.6.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.opencensus.io v0.24.0 // indirect
@@ -64,7 +64,7 @@ require (
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250219182151-9fdb1cabc7b2 // indirect

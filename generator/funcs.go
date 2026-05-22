@@ -232,7 +232,7 @@ func (a *Generator) escapedcolnames(fields []*internal.Field, ignoreNames ...int
 	str := ""
 	i := 0
 	for _, f := range fields {
-		if ignore[f.Name] {
+		if ignore[f.Name] || f.Col.IsHidden {
 			continue
 		}
 
@@ -257,7 +257,7 @@ func (a *Generator) colnamesquery(fields []*internal.Field, sep string, ignoreNa
 	str := ""
 	i := 0
 	for _, f := range fields {
-		if ignore[f.Name] {
+		if ignore[f.Name] || f.Col.IsHidden {
 			continue
 		}
 
