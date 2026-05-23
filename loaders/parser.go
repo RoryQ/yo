@@ -20,6 +20,7 @@
 package loaders
 
 import (
+	"strings"
 	"fmt"
 	"io/ioutil"
 
@@ -104,7 +105,7 @@ func (s *SpannerLoaderFromDDL) MaskFunc() string {
 }
 
 func (s *SpannerLoaderFromDDL) ParseType(dt string, nullable bool) (int, string, string) {
-	return SpanParseType(dt, nullable)
+	return SpanParseType(strings.ToUpper(dt), nullable)
 }
 
 func (s *SpannerLoaderFromDDL) ValidCustomType(dataType string, customType string) bool {
@@ -114,12 +115,24 @@ func (s *SpannerLoaderFromDDL) ValidCustomType(dataType string, customType strin
 func (s *SpannerLoaderFromDDL) TableList() ([]*models.Table, error) {
 	var tables []*models.Table
 	for _, t := range s.tables {
-		tableName, err := extractName(t.createTable.Name)
+		var tableName string
+		var tableType string
+		var err error
+		if t.createTable != nil {
+			tableName, err = extractName(t.createTable.Name)
+			tableType = "BASE TABLE"
+		} else if t.createView != nil {
+			tableName, err = extractName(t.createView.Name)
+			tableType = "VIEW"
+		} else {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
 		tables = append(tables, &models.Table{
 			TableName: tableName,
+			Type:      tableType,
 			ManualPk:  true,
 		})
 	}
@@ -129,47 +142,75 @@ func (s *SpannerLoaderFromDDL) TableList() ([]*models.Table, error) {
 
 func (s *SpannerLoaderFromDDL) ColumnList(name string) ([]*models.Column, error) {
 	var cols []*models.Column
-	table := s.tables[name].createTable
-
-	check := make(map[string]struct{})
-	for _, pk := range table.PrimaryKeys {
-		check[pk.Name.Name] = struct{}{}
+	t, ok := s.tables[name]
+	if !ok {
+		return nil, fmt.Errorf("table or view %q not found in DDL", name)
 	}
 
-	for i, c := range table.Columns {
-		_, pk := check[c.Name.Name]
-		isGenerated := false
-		if _, ok := c.DefaultSemantics.(*ast.GeneratedColumnExpr); ok {
-			isGenerated = true
+	if t.createTable != nil {
+		table := s.tables[name].createTable
+		check := make(map[string]struct{})
+		for _, pk := range table.PrimaryKeys {
+			check[pk.Name.Name] = struct{}{}
 		}
 
-		allowCommitTimestamp := false
-		if c.Options != nil {
-			for _, r := range c.Options.Records {
-				if r.Name.Name == "allow_commit_timestamp" {
-					boolLiteral, ok := r.Value.(*ast.BoolLiteral)
-					if !ok {
-						return nil, fmt.Errorf("the type of 'allow_commit_timestamp' should be 'bool', but got '%T'", r.Value)
+		for i, c := range table.Columns {
+			_, pk := check[c.Name.Name]
+			isGenerated := false
+			if _, ok := c.DefaultSemantics.(*ast.GeneratedColumnExpr); ok {
+				isGenerated = true
+			}
+
+			allowCommitTimestamp := false
+			if c.Options != nil {
+				for _, r := range c.Options.Records {
+					if r.Name.Name == "allow_commit_timestamp" {
+						allowCommitTimestamp = true
 					}
-					allowCommitTimestamp = boolLiteral.Value
-					break
 				}
 			}
+
+			dataType := c.Type.SQL()
+			if strings.HasPrefix(strings.ToUpper(dataType), "TOKENLIST") {
+				continue
+			}
+			cols = append(cols, &models.Column{
+				FieldOrdinal:           i + 1,
+				ColumnName:             c.Name.Name,
+				DataType:               strings.ToUpper(dataType),
+				NotNull:                c.NotNull,
+				IsPrimaryKey:           pk,
+				IsGenerated:            isGenerated,
+					IsAllowCommitTimestamp: allowCommitTimestamp,
+					IsHidden:               !c.Hidden.Invalid(),
+				})
+		}
+		return cols, nil
+	} else if t.createView != nil {
+		// Handle View
+		// Resolve to base table to get proper column/PK info
+		visited := map[string]struct{}{}
+		baseTable := name
+		for s.tables[baseTable].createView != nil {
+			if _, seen := visited[baseTable]; seen {
+				return nil, fmt.Errorf("circular view reference detected at %q", baseTable)
+			}
+			visited[baseTable] = struct{}{}
+			sourceTables, err := baseTablesForViewDDL(s.tables[baseTable].createView.SQL())
+			if err != nil {
+				return nil, err
+			}
+			if len(sourceTables) == 0 {
+				return nil, fmt.Errorf("no base table found for view %q", baseTable)
+			}
+			baseTable = sourceTables[0]
 		}
 
-		cols = append(cols, &models.Column{
-			FieldOrdinal:           i + 1,
-			ColumnName:             c.Name.Name,
-			DataType:               c.Type.SQL(),
-			NotNull:                c.NotNull,
-			IsPrimaryKey:           pk,
-			IsGenerated:            isGenerated,
-			IsHidden:               !c.Hidden.Invalid(),
-			IsAllowCommitTimestamp: allowCommitTimestamp,
-		})
+		return s.ColumnList(baseTable)
 	}
 
-	return cols, nil
+	return nil, fmt.Errorf("invalid DDL entry for %q", name)
+
 }
 
 func (s *SpannerLoaderFromDDL) IndexList(name string) ([]*models.Index, error) {

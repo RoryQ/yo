@@ -902,9 +902,8 @@ func TestSessionNotFound(t *testing.T) {
 			ResourceType: "type.googleapis.com/google.spanner.v1.Session",
 			ResourceName: "xxx",
 		}
-
 		if diff := cmp.Diff(expectedResourceInfo, ri, protocmp.Transform()); diff != "" {
-			t.Errorf("(-got, +want)\n%s", diff)
+			t.Fatalf("ResourceInfo mismatch (-want +got):\n%s", diff)
 		}
 	})
 
@@ -971,6 +970,9 @@ func TestAborted(t *testing.T) {
 		if !retried {
 			t.Fatalf("aborted on Commit should be retried")
 		}
+
+		// Read via ViewLayer1 is no longer supported as it uses db.Read (KeySet) which is not for views.
+		// Use Find instead.
 	})
 }
 
@@ -981,4 +983,36 @@ func extractResourceInfo(st *status.Status) *errdetails.ResourceInfo {
 		}
 	}
 	return nil
+}
+
+func TestViewLayer(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ViewLayer", func(t *testing.T) {
+		// Insert data into SourceTable
+		_, err := client.Apply(ctx, []*spanner.Mutation{
+			spanner.InsertOrUpdate("SourceTable", []string{"ID", "Val"}, []interface{}{1000, "hello"}),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Find via ViewLayer1
+		got1, err := models.FindViewLayer1(ctx, client.Single(), 1000)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got1.Val != "hello" {
+			t.Fatalf("expected hello, got %s", got1.Val)
+		}
+
+		// Find via ViewLayer2
+		got2, err := models.FindViewLayer2(ctx, client.Single(), 1000)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got2.Val != "hello" {
+			t.Fatalf("expected hello, got %s", got2.Val)
+		}
+	})
 }

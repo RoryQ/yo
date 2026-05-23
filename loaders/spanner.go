@@ -210,6 +210,9 @@ func SpanParseType(dt string, nullable bool) (int, string, string) {
 			nilVal = `spanner.NullJSON{}`
 		}
 
+	case "TOKENLIST":
+		typ = "string"
+
 	case "NUMERIC":
 		nilVal = "big.Rat{}"
 		typ = "big.Rat"
@@ -331,6 +334,9 @@ func spanTableColumns(client *spanner.Client, table string) ([]*models.Column, e
 		}
 		if err := row.ColumnByName("SPANNER_TYPE", &c.DataType); err != nil {
 			return nil, err
+		}
+		if strings.HasPrefix(c.DataType, "TOKENLIST") {
+			continue
 		}
 		if err := row.ColumnByName("IS_PRIMARY_KEY", &c.IsPrimaryKey); err != nil {
 			return nil, err

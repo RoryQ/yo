@@ -1868,6 +1868,387 @@ func (sc *SnakeCase) Delete(ctx context.Context) *spanner.Mutation {
 	return spanner.Delete("snake_cases", spanner.Key(values))
 }
 
+// SourceTable represents a row from 'SourceTable'.
+type SourceTable struct {
+	ID  int64  `spanner:"ID" json:"ID"`   // ID
+	Val string `spanner:"Val" json:"Val"` // Val
+}
+
+func SourceTablePrimaryKeys() []string {
+	return []string{
+		"ID",
+	}
+}
+
+func SourceTableColumns() []string {
+	return []string{
+		"ID",
+		"Val",
+	}
+}
+
+func SourceTableWritableColumns() []string {
+	return []string{
+		"ID",
+		"Val",
+	}
+}
+
+func (st *SourceTable) columnsToPtrs(cols []string, customPtrs map[string]interface{}) ([]interface{}, error) {
+	ret := make([]interface{}, 0, len(cols))
+	for _, col := range cols {
+		if val, ok := customPtrs[col]; ok {
+			ret = append(ret, val)
+			continue
+		}
+
+		switch col {
+		case "ID":
+			ret = append(ret, &st.ID)
+		case "Val":
+			ret = append(ret, &st.Val)
+		default:
+			return nil, fmt.Errorf("unknown column: %s", col)
+		}
+	}
+	return ret, nil
+}
+
+func (st *SourceTable) columnsToValues(cols []string) ([]interface{}, error) {
+	ret := make([]interface{}, 0, len(cols))
+	for _, col := range cols {
+		switch col {
+		case "ID":
+			ret = append(ret, st.ID)
+		case "Val":
+			ret = append(ret, st.Val)
+		default:
+			return nil, fmt.Errorf("unknown column: %s", col)
+		}
+	}
+
+	return ret, nil
+}
+
+// newSourceTable_Decoder returns a decoder which reads a row from *spanner.Row
+// into SourceTable. The decoder is not goroutine-safe. Don't use it concurrently.
+func newSourceTable_Decoder(cols []string) func(*spanner.Row) (*SourceTable, error) {
+	customPtrs := map[string]interface{}{}
+
+	return func(row *spanner.Row) (*SourceTable, error) {
+		var st SourceTable
+		ptrs, err := st.columnsToPtrs(cols, customPtrs)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := row.Columns(ptrs...); err != nil {
+			return nil, err
+		}
+
+		return &st, nil
+	}
+}
+
+// Insert returns a Mutation to insert a row into a table. If the row already
+// exists, the write or transaction fails.
+func (st *SourceTable) Insert(ctx context.Context) *spanner.Mutation {
+	values, _ := st.columnsToValues(SourceTableWritableColumns())
+	return spanner.Insert("SourceTable", SourceTableWritableColumns(), values)
+}
+
+// Update returns a Mutation to update a row in a table. If the row does not
+// already exist, the write or transaction fails.
+func (st *SourceTable) Update(ctx context.Context) *spanner.Mutation {
+	values, _ := st.columnsToValues(SourceTableWritableColumns())
+	return spanner.Update("SourceTable", SourceTableWritableColumns(), values)
+}
+
+// InsertOrUpdate returns a Mutation to insert a row into a table. If the row
+// already exists, it updates it instead. Any column values not explicitly
+// written are preserved.
+func (st *SourceTable) InsertOrUpdate(ctx context.Context) *spanner.Mutation {
+	values, _ := st.columnsToValues(SourceTableWritableColumns())
+	return spanner.InsertOrUpdate("SourceTable", SourceTableWritableColumns(), values)
+}
+
+// UpdateColumns returns a Mutation to update specified columns of a row in a table.
+func (st *SourceTable) UpdateColumns(ctx context.Context, cols ...string) (*spanner.Mutation, error) {
+	// add primary keys to columns to update by primary keys
+	colsWithPKeys := append(cols, SourceTablePrimaryKeys()...)
+
+	values, err := st.columnsToValues(colsWithPKeys)
+	if err != nil {
+		return nil, newErrorWithCode(codes.InvalidArgument, "SourceTable.UpdateColumns", "SourceTable", err)
+	}
+
+	return spanner.Update("SourceTable", colsWithPKeys, values), nil
+}
+
+// FindSourceTable gets a SourceTable by primary key
+func FindSourceTable(ctx context.Context, db YORODB, id int64) (*SourceTable, error) {
+	key := spanner.Key{id}
+	row, err := db.ReadRow(ctx, "SourceTable", key, SourceTableColumns())
+	if err != nil {
+		return nil, newError("FindSourceTable", "SourceTable", err)
+	}
+
+	decoder := newSourceTable_Decoder(SourceTableColumns())
+	st, err := decoder(row)
+	if err != nil {
+		return nil, newErrorWithCode(codes.Internal, "FindSourceTable", "SourceTable", err)
+	}
+
+	return st, nil
+}
+
+// ReadSourceTable retrieves multiples rows from SourceTable by KeySet as a slice.
+func ReadSourceTable(ctx context.Context, db YORODB, keys spanner.KeySet) ([]*SourceTable, error) {
+	var res []*SourceTable
+
+	decoder := newSourceTable_Decoder(SourceTableColumns())
+
+	rows := db.Read(ctx, "SourceTable", keys, SourceTableColumns())
+	err := rows.Do(func(row *spanner.Row) error {
+		st, err := decoder(row)
+		if err != nil {
+			return err
+		}
+		res = append(res, st)
+
+		return nil
+	})
+	if err != nil {
+		return nil, newErrorWithCode(codes.Internal, "ReadSourceTable", "SourceTable", err)
+	}
+
+	return res, nil
+}
+
+// Delete deletes the SourceTable from the database.
+func (st *SourceTable) Delete(ctx context.Context) *spanner.Mutation {
+	values, _ := st.columnsToValues(SourceTablePrimaryKeys())
+	return spanner.Delete("SourceTable", spanner.Key(values))
+}
+
+// ViewLayer1 represents a row from 'ViewLayer1'.
+type ViewLayer1 struct {
+	ID  int64  `spanner:"ID" json:"ID"`   // ID
+	Val string `spanner:"Val" json:"Val"` // Val
+}
+
+func ViewLayer1PrimaryKeys() []string {
+	return []string{
+		"ID",
+	}
+}
+
+func ViewLayer1Columns() []string {
+	return []string{
+		"ID",
+		"Val",
+	}
+}
+
+func ViewLayer1WritableColumns() []string {
+	return []string{
+		"ID",
+		"Val",
+	}
+}
+
+func (vl *ViewLayer1) columnsToPtrs(cols []string, customPtrs map[string]interface{}) ([]interface{}, error) {
+	ret := make([]interface{}, 0, len(cols))
+	for _, col := range cols {
+		if val, ok := customPtrs[col]; ok {
+			ret = append(ret, val)
+			continue
+		}
+
+		switch col {
+		case "ID":
+			ret = append(ret, &vl.ID)
+		case "Val":
+			ret = append(ret, &vl.Val)
+		default:
+			return nil, fmt.Errorf("unknown column: %s", col)
+		}
+	}
+	return ret, nil
+}
+
+func (vl *ViewLayer1) columnsToValues(cols []string) ([]interface{}, error) {
+	ret := make([]interface{}, 0, len(cols))
+	for _, col := range cols {
+		switch col {
+		case "ID":
+			ret = append(ret, vl.ID)
+		case "Val":
+			ret = append(ret, vl.Val)
+		default:
+			return nil, fmt.Errorf("unknown column: %s", col)
+		}
+	}
+
+	return ret, nil
+}
+
+// newViewLayer1_Decoder returns a decoder which reads a row from *spanner.Row
+// into ViewLayer1. The decoder is not goroutine-safe. Don't use it concurrently.
+func newViewLayer1_Decoder(cols []string) func(*spanner.Row) (*ViewLayer1, error) {
+	customPtrs := map[string]interface{}{}
+
+	return func(row *spanner.Row) (*ViewLayer1, error) {
+		var vl ViewLayer1
+		ptrs, err := vl.columnsToPtrs(cols, customPtrs)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := row.Columns(ptrs...); err != nil {
+			return nil, err
+		}
+
+		return &vl, nil
+	}
+}
+
+// FindViewLayer1 gets a ViewLayer1 by primary key
+func FindViewLayer1(ctx context.Context, db YORODB, id int64) (*ViewLayer1, error) {
+	const sqlstr = "SELECT " +
+		"ID, Val " +
+		"FROM ViewLayer1 " +
+		"WHERE ID = @param0"
+	stmt := spanner.NewStatement(sqlstr)
+	stmt.Params["param0"] = id
+	iter := db.Query(ctx, stmt)
+	defer iter.Stop()
+	row, err := iter.Next()
+	if err != nil {
+		if err == iterator.Done {
+			return nil, newErrorWithCode(codes.NotFound, "FindViewLayer1", "ViewLayer1", err)
+		}
+		return nil, newError("FindViewLayer1", "ViewLayer1", err)
+	}
+
+	decoder := newViewLayer1_Decoder(ViewLayer1Columns())
+	vl, err := decoder(row)
+	if err != nil {
+		return nil, newErrorWithCode(codes.Internal, "FindViewLayer1", "ViewLayer1", err)
+	}
+
+	return vl, nil
+}
+
+// ViewLayer2 represents a row from 'ViewLayer2'.
+type ViewLayer2 struct {
+	ID  int64  `spanner:"ID" json:"ID"`   // ID
+	Val string `spanner:"Val" json:"Val"` // Val
+}
+
+func ViewLayer2PrimaryKeys() []string {
+	return []string{
+		"ID",
+	}
+}
+
+func ViewLayer2Columns() []string {
+	return []string{
+		"ID",
+		"Val",
+	}
+}
+
+func ViewLayer2WritableColumns() []string {
+	return []string{
+		"ID",
+		"Val",
+	}
+}
+
+func (vl *ViewLayer2) columnsToPtrs(cols []string, customPtrs map[string]interface{}) ([]interface{}, error) {
+	ret := make([]interface{}, 0, len(cols))
+	for _, col := range cols {
+		if val, ok := customPtrs[col]; ok {
+			ret = append(ret, val)
+			continue
+		}
+
+		switch col {
+		case "ID":
+			ret = append(ret, &vl.ID)
+		case "Val":
+			ret = append(ret, &vl.Val)
+		default:
+			return nil, fmt.Errorf("unknown column: %s", col)
+		}
+	}
+	return ret, nil
+}
+
+func (vl *ViewLayer2) columnsToValues(cols []string) ([]interface{}, error) {
+	ret := make([]interface{}, 0, len(cols))
+	for _, col := range cols {
+		switch col {
+		case "ID":
+			ret = append(ret, vl.ID)
+		case "Val":
+			ret = append(ret, vl.Val)
+		default:
+			return nil, fmt.Errorf("unknown column: %s", col)
+		}
+	}
+
+	return ret, nil
+}
+
+// newViewLayer2_Decoder returns a decoder which reads a row from *spanner.Row
+// into ViewLayer2. The decoder is not goroutine-safe. Don't use it concurrently.
+func newViewLayer2_Decoder(cols []string) func(*spanner.Row) (*ViewLayer2, error) {
+	customPtrs := map[string]interface{}{}
+
+	return func(row *spanner.Row) (*ViewLayer2, error) {
+		var vl ViewLayer2
+		ptrs, err := vl.columnsToPtrs(cols, customPtrs)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := row.Columns(ptrs...); err != nil {
+			return nil, err
+		}
+
+		return &vl, nil
+	}
+}
+
+// FindViewLayer2 gets a ViewLayer2 by primary key
+func FindViewLayer2(ctx context.Context, db YORODB, id int64) (*ViewLayer2, error) {
+	const sqlstr = "SELECT " +
+		"ID, Val " +
+		"FROM ViewLayer2 " +
+		"WHERE ID = @param0"
+	stmt := spanner.NewStatement(sqlstr)
+	stmt.Params["param0"] = id
+	iter := db.Query(ctx, stmt)
+	defer iter.Stop()
+	row, err := iter.Next()
+	if err != nil {
+		if err == iterator.Done {
+			return nil, newErrorWithCode(codes.NotFound, "FindViewLayer2", "ViewLayer2", err)
+		}
+		return nil, newError("FindViewLayer2", "ViewLayer2", err)
+	}
+
+	decoder := newViewLayer2_Decoder(ViewLayer2Columns())
+	vl, err := decoder(row)
+	if err != nil {
+		return nil, newErrorWithCode(codes.Internal, "FindViewLayer2", "ViewLayer2", err)
+	}
+
+	return vl, nil
+}
+
 // FindCompositePrimaryKeysByError retrieves multiple rows from 'CompositePrimaryKeys' as a slice of CompositePrimaryKey.
 //
 // Generated from index 'CompositePrimaryKeysByError'.
