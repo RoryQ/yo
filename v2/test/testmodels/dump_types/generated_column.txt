@@ -1,9 +1,9 @@
 # Field list of GeneratedColumn
 
 * ID INT64 int64
-* FirstName STRING(50) string
-* LastName STRING(50) string
-* FullName STRING(100) string
+* FirstName STRING(50) string len=50
+* LastName STRING(50) string len=50
+* FullName STRING(100) string len=100
 
 # Primary Key
 

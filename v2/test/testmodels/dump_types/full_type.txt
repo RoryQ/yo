@@ -1,12 +1,12 @@
 # Field list of FullType
 
-* PKey STRING(32) string
-* FTString STRING(32) string
-* FTStringNull STRING(32) spanner.NullString
+* PKey STRING(32) string len=32
+* FTString STRING(32) string len=32
+* FTStringNull STRING(32) spanner.NullString len=32
 * FTBool BOOL bool
 * FTBoolNull BOOL spanner.NullBool
-* FTBytes BYTES(32) []byte
-* FTBytesNull BYTES(32) []byte
+* FTBytes BYTES(32) []byte len=32
+* FTBytesNull BYTES(32) []byte len=32
 * FTTimestamp TIMESTAMP time.Time
 * FTTimestampNull TIMESTAMP spanner.NullTime
 * FTInt INT64 int64
@@ -17,12 +17,12 @@
 * FTDateNull DATE spanner.NullDate
 * FTJSON JSON spanner.NullJSON
 * FTJSONNull JSON spanner.NullJSON
-* FTArrayStringNull ARRAY<STRING(32)> []string
-* FTArrayString ARRAY<STRING(32)> []string
+* FTArrayStringNull ARRAY<STRING(32)> []string elemLen=32
+* FTArrayString ARRAY<STRING(32)> []string elemLen=32
 * FTArrayBoolNull ARRAY<BOOL> []bool
 * FTArrayBool ARRAY<BOOL> []bool
-* FTArrayBytesNull ARRAY<BYTES(32)> [][]byte
-* FTArrayBytes ARRAY<BYTES(32)> [][]byte
+* FTArrayBytesNull ARRAY<BYTES(32)> [][]byte elemLen=32
+* FTArrayBytes ARRAY<BYTES(32)> [][]byte elemLen=32
 * FTArrayTimestampNull ARRAY<TIMESTAMP> []time.Time
 * FTArrayTimestamp ARRAY<TIMESTAMP> []time.Time
 * FTArrayIntNull ARRAY<INT64> []int64

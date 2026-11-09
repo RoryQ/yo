@@ -30,10 +30,13 @@ import (
 var lengthRegexp = regexp.MustCompile(`\(([0-9]+|MAX)\)$`)
 
 // SpanParseType parse a Spanner type into a Go type based on the column
-// definition.
-func parseSpannerType(dt string, nullable bool) (int, string, string) {
+// definition. It returns the length of a STRING or BYTES column, the element
+// length of an ARRAY<STRING(N)> or ARRAY<BYTES(N)> column, the nil value and
+// the Go type. Lengths are -1 for MAX and for any other type.
+func parseSpannerType(dt string, nullable bool) (int, int, string, string) {
 	nilVal := "nil"
 	length := -1
+	elemLength := -1
 
 	// separate type and length from dt with length such as STRING(32) or BYTES(256)
 	m := lengthRegexp.FindStringSubmatchIndex(dt)
@@ -124,7 +127,8 @@ func parseSpannerType(dt string, nullable bool) (int, string, string) {
 	default:
 		if strings.HasPrefix(dt, "ARRAY<") {
 			eleDataType := strings.TrimSuffix(strings.TrimPrefix(dt, "ARRAY<"), ">")
-			_, _, eleTyp := parseSpannerType(eleDataType, false)
+			eleLen, _, _, eleTyp := parseSpannerType(eleDataType, false)
+			elemLength = eleLen
 			typ, nilVal = "[]"+eleTyp, "nil"
 			if !nullable {
 				nilVal = typ + "{}"
@@ -136,5 +140,5 @@ func parseSpannerType(dt string, nullable bool) (int, string, string) {
 		nilVal = typ + "{}"
 	}
 
-	return length, nilVal, typ
+	return length, elemLength, nilVal, typ
 }

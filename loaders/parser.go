@@ -103,7 +103,7 @@ func (s *SpannerLoaderFromDDL) MaskFunc() string {
 	return "?"
 }
 
-func (s *SpannerLoaderFromDDL) ParseType(dt string, nullable bool) (int, string, string) {
+func (s *SpannerLoaderFromDDL) ParseType(dt string, nullable bool) (int, int, string, string) {
 	return SpanParseType(dt, nullable)
 }
 

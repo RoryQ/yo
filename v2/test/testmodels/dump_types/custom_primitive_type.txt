@@ -1,6 +1,6 @@
 # Field list of CustomPrimitiveType
 
-* PKey STRING(32) string
+* PKey STRING(32) string len=32
 * FTInt64 INT64 int64
 * FTInt64null INT64 spanner.NullInt64
 * FTInt32 INT64 int64
