@@ -274,6 +274,7 @@ func (tl *TypeLoader) LoadColumns(typeTpl *models.Type) error {
 		f := &models.Field{
 			Name:            internal.SnakeToCamel(c.ColumnName),
 			Len:             len,
+			ElemLen:         arrayElemLen(c.DataType),
 			NullValue:       nilVal,
 			Type:            typ,
 			OriginalType:    typ,

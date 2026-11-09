@@ -41,6 +41,7 @@ type Field struct {
 	OriginalType    string // Go type corresponding to Spanner type
 	NullValue       string // NULL value for Type
 	Len             int    // Length for STRING, BYTES. -1 for MAX or other types
+	ElemLen         int    // Element length for ARRAY<STRING(N)>, ARRAY<BYTES(N)>. -1 for MAX or other types
 	ColumnName      string // column_name
 	SpannerDataType string // data_type
 	IsNotNull       bool   // not_null

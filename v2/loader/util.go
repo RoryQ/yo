@@ -29,6 +29,23 @@ import (
 
 var lengthRegexp = regexp.MustCompile(`\(([0-9]+|MAX)\)$`)
 
+var arrayElemLenRegexp = regexp.MustCompile(`^ARRAY<(?:STRING|BYTES)\(([0-9]+)\)>$`)
+
+// arrayElemLen returns the element length of an ARRAY<STRING(N)> or ARRAY<BYTES(N)>
+// data type. It returns -1 for MAX lengths and for any other data type.
+func arrayElemLen(dt string) int {
+	m := arrayElemLenRegexp.FindStringSubmatch(dt)
+	if m == nil {
+		return -1
+	}
+
+	l, err := strconv.Atoi(m[1])
+	if err != nil {
+		return -1
+	}
+	return l
+}
+
 // SpanParseType parse a Spanner type into a Go type based on the column
 // definition.
 func parseSpannerType(dt string, nullable bool) (int, string, string) {
