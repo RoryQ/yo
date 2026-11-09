@@ -268,13 +268,13 @@ func (tl *TypeLoader) LoadColumns(typeTpl *models.Type) error {
 			continue
 		}
 
-		len, nilVal, typ := parseSpannerType(c.DataType, !c.NotNull)
+		len, elemLen, nilVal, typ := parseSpannerType(c.DataType, !c.NotNull)
 
 		// set col info
 		f := &models.Field{
 			Name:            internal.SnakeToCamel(c.ColumnName),
 			Len:             len,
-			ElemLen:         arrayElemLen(c.DataType),
+			ElemLen:         elemLen,
 			NullValue:       nilVal,
 			Type:            typ,
 			OriginalType:    typ,

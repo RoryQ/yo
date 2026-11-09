@@ -34,7 +34,7 @@ import (
 type loaderImpl interface {
 	ParamN(int) string
 	MaskFunc() string
-	ParseType(string, bool) (int, string, string)
+	ParseType(string, bool) (int, int, string, string)
 	ValidCustomType(string, string) bool
 	TableList() ([]*models.Table, error)
 	ColumnList(string) ([]*models.Column, error)
@@ -266,8 +266,7 @@ func (tl *TypeLoader) LoadColumns(args *ArgType, typeTpl *Type) error {
 			Col: c,
 		}
 
-		f.Len, f.NilType, f.Type = tl.loader.ParseType(c.DataType, !c.NotNull)
-		f.ElemLen = arrayElemLen(c.DataType)
+		f.Len, f.ElemLen, f.NilType, f.Type = tl.loader.ParseType(c.DataType, !c.NotNull)
 
 		// set custom type
 		if columnTypes != nil {

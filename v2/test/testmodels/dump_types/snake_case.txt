@@ -1,7 +1,7 @@
 # Field list of SnakeCase
 
 * ID INT64 int64
-* StringID STRING(32) string
+* StringID STRING(32) string len=32
 * FooBarBaz INT64 int64
 
 # Primary Key

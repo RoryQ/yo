@@ -68,6 +68,15 @@ CREATE TABLE MaxLengths (
 ) PRIMARY KEY(MaxString);
 `
 
+	arrayLengthSchema = `
+CREATE TABLE ArrayLengths (
+  Id INT64 NOT NULL,
+  Strings ARRAY<STRING(100)>,
+  Bytes ARRAY<BYTES(65)>,
+  MaxStrings ARRAY<STRING(MAX)>,
+  Ints ARRAY<INT64>,
+) PRIMARY KEY(Id);
+`
 	alterTableAddFKSchema = `
 ALTER TABLE Foo ADD FOREIGN KEY (CustomerID) REFERENCES Customers (CustomerID)
 
@@ -331,6 +340,76 @@ func TestLoader(t *testing.T) {
 							},
 						},
 						TableName: "MaxLengths",
+					},
+				},
+			},
+		},
+		{
+			name:   "ArrayLength",
+			opt:    Option{},
+			schema: arrayLengthSchema,
+			expectedSchema: &models.Schema{
+				Types: []*models.Type{
+					{
+						Name: "ArrayLength",
+						PrimaryKeyFields: []*models.Field{
+							{ColumnName: "Id"},
+						},
+						Fields: []*models.Field{
+							{
+								Name:            "ID",
+								Type:            "int64",
+								OriginalType:    "int64",
+								NullValue:       "0",
+								Len:             -1,
+								ElemLen:         -1,
+								ColumnName:      "Id",
+								SpannerDataType: "INT64",
+								IsNotNull:       true,
+								IsPrimaryKey:    true,
+							},
+							{
+								Name:            "Strings",
+								Type:            "[]string",
+								OriginalType:    "[]string",
+								NullValue:       "nil",
+								Len:             -1,
+								ElemLen:         100,
+								ColumnName:      "Strings",
+								SpannerDataType: "ARRAY<STRING(100)>",
+							},
+							{
+								Name:            "Bytes",
+								Type:            "[][]byte",
+								OriginalType:    "[][]byte",
+								NullValue:       "nil",
+								Len:             -1,
+								ElemLen:         65,
+								ColumnName:      "Bytes",
+								SpannerDataType: "ARRAY<BYTES(65)>",
+							},
+							{
+								Name:            "MaxStrings",
+								Type:            "[]string",
+								OriginalType:    "[]string",
+								NullValue:       "nil",
+								Len:             -1,
+								ElemLen:         -1,
+								ColumnName:      "MaxStrings",
+								SpannerDataType: "ARRAY<STRING(MAX)>",
+							},
+							{
+								Name:            "Ints",
+								Type:            "[]int64",
+								OriginalType:    "[]int64",
+								NullValue:       "nil",
+								Len:             -1,
+								ElemLen:         -1,
+								ColumnName:      "Ints",
+								SpannerDataType: "ARRAY<INT64>",
+							},
+						},
+						TableName: "ArrayLengths",
 					},
 				},
 			},

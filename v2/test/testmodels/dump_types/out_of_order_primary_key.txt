@@ -1,8 +1,8 @@
 # Field list of OutOfOrderPrimaryKey
 
-* PKey1 STRING(32) string
-* PKey2 STRING(32) string
-* PKey3 STRING(32) string
+* PKey1 STRING(32) string len=32
+* PKey2 STRING(32) string len=32
+* PKey3 STRING(32) string len=32
 
 # Primary Key
 
