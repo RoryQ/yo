@@ -28,6 +28,7 @@ type Field struct {
 	CustomType string
 	NilType    string
 	Len        int
+	ElemLen    int // element length of ARRAY<STRING(N)> and ARRAY<BYTES(N)>, -1 for MAX or other types
 	Col        *models.Column
 }
 

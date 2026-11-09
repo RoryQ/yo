@@ -267,6 +267,7 @@ func (tl *TypeLoader) LoadColumns(args *ArgType, typeTpl *Type) error {
 		}
 
 		f.Len, f.NilType, f.Type = tl.loader.ParseType(c.DataType, !c.NotNull)
+		f.ElemLen = arrayElemLen(c.DataType)
 
 		// set custom type
 		if columnTypes != nil {
