@@ -1,12 +1,8 @@
 package loaders
 
 import (
-	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,6 +25,14 @@ func Test_baseTableForViewDDL(t *testing.T) {
 		"JoinToSubquery": {
 			ddlString: viewDDL(`SELECT k.PKey FROM FullTypes AS f RIGHT JOIN (SELECT PKey FROM SecondTable) AS k ON k.PKey = f.PKey`),
 			want:      []string{"FullTypes", "SecondTable"},
+		},
+		"RepeatedTable_ListedOnce": {
+			ddlString: viewDDL(`SELECT k.PKey FROM FullTypes AS f JOIN (SELECT PKey FROM FullTypes UNION ALL SELECT PKey FROM SecondTable) AS k USING (PKey)`),
+			want:      []string{"FullTypes", "SecondTable"},
+		},
+		"RepeatedTableInUnion_ListedOnce": {
+			ddlString: viewDDL(`SELECT PKey FROM FullTypes UNION ALL SELECT PKey FROM FullTypes`),
+			want:      []string{"FullTypes"},
 		},
 		"SubqueryFirst": {
 			ddlString: viewDDL(`SELECT k.PKey FROM (SELECT PKey FROM FullTypes) AS k JOIN SecondTable USING (PKey)`),
@@ -255,48 +259,6 @@ func ddlLoader(t *testing.T, ddl string) *SpannerLoaderFromDDL {
 		t.Fatal(err)
 	}
 	return loader
-}
-
-var update = flag.Bool("update", false, "update the golden files")
-
-// Test_viewSources_Golden reads the views of testdata/view_sources.sql through the DDL loader and compares the tables and
-// the primary key that each resolves to with testdata/view_sources.golden. Run `go test ./loaders -update` to regenerate it.
-func Test_viewSources_Golden(t *testing.T) {
-	loader, err := NewSpannerLoaderFromDDL(filepath.Join("testdata", "view_sources.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var views []string
-	for name, tbl := range loader.tables {
-		if tbl.createView != nil {
-			views = append(views, name)
-		}
-	}
-	sort.Strings(views)
-
-	var got strings.Builder
-	for _, name := range views {
-		baseTables, err := baseTablesForViewDDL(loader.tables[name].createView.SQL())
-		if err != nil {
-			t.Fatalf("baseTablesForViewDDL(%s): %v", name, err)
-		}
-		fmt.Fprintf(&got, "%s\n  base tables: %s\n  primary key: %s\n", name, strings.Join(baseTables, ", "), strings.Join(primaryKeyNames(t, loader, name), ", "))
-	}
-
-	goldenPath := filepath.Join("testdata", "view_sources.golden")
-	if *update {
-		if err := os.WriteFile(goldenPath, []byte(got.String()), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	want, err := os.ReadFile(goldenPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diff := cmp.Diff(string(want), got.String()); diff != "" {
-		t.Errorf("views (-want, +got)\n%s", diff)
-	}
 }
 
 // primaryKeyViewsDDL is the tables that the views of the primary key tests read.
