@@ -22,7 +22,9 @@ func Test_baseTableForViewDDL(t *testing.T) {
 			ddlString: `CREATE VIEW SomeTypes SQL SECURITY INVOKER AS SELECT FullTypes.PKey, SecondTable.Column FROM FullTypes JOIN SecondTable USING (PKey)`,
 			want:      []string{"FullTypes", "SecondTable"},
 		},
-		"JoinToSubquery": {
+		// The key of a view comes from the first table, whatever the join type. The right side of a RIGHT JOIN is the row
+		// source, so the first table is not the one that defines the rows. Only the table list is asserted here.
+		"RightJoinToSubquery_KnownLimitation": {
 			ddlString: viewDDL(`SELECT k.PKey FROM FullTypes AS f RIGHT JOIN (SELECT PKey FROM SecondTable) AS k ON k.PKey = f.PKey`),
 			want:      []string{"FullTypes", "SecondTable"},
 		},
@@ -148,7 +150,10 @@ CREATE VIEW Layer2 SQL SECURITY INVOKER AS
 		}
 	})
 
-	t.Run("JoinToSubquery", func(t *testing.T) {
+	// The expected key is the one of BaseTable, which is wrong for this view. The rows come from the subquery k, so the
+	// view can hold rows that are not in BaseTable, and the UNION ALL can repeat AccountID. The key is the one of the
+	// first table in the FROM clause, whatever the join type.
+	t.Run("RightJoinToSubquery_UsesLeftKey_KnownLimitation", func(t *testing.T) {
 		loader := ddlLoader(t, primaryKeyViewsDDL+`
 CREATE VIEW Joined SQL SECURITY INVOKER AS
   SELECT k.AccountID FROM BaseTable AS b
