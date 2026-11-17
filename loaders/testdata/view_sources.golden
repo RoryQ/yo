@@ -2,7 +2,7 @@ JoinView
   base tables: Items, Owners
   primary key: OwnerID, ItemID
 JoinedToSubqueryView
-  base tables: Items, Items, ArchivedItems, Items, ArchivedItems
+  base tables: Items, ArchivedItems
   primary key: OwnerID, ItemID
 NestedView
   base tables: PlainView

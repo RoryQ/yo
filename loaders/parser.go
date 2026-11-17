@@ -278,14 +278,33 @@ func baseTablesForViewDDL(ddlString string) ([]string, error) {
 	return extractTablesFromQuery(view.Query)
 }
 
-// extractTablesFromQuery extracts the tables of the FROM clauses of a query.
+// extractTablesFromQuery extracts the tables of the FROM clauses of a query, each table once, in order of first appearance.
 // For *ast.Select: Extracts the tables of its FROM clause, none when it has no FROM clause.
 // For *ast.SubQuery: Extracts the tables of the parenthesized query.
 // For *ast.CompoundQuery: Extracts the tables of each query of the UNION, INTERSECT or EXCEPT, in order.
 // For *ast.Query: Extracts the tables of the query under its ORDER BY and LIMIT clauses.
 // A WITH clause is an error, because Spanner does not support it in view definitions.
 // SELECT * FROM (SELECT * FROM a UNION ALL SELECT * FROM b) → ["a", "b"]
+// SELECT * FROM a JOIN (SELECT * FROM a UNION ALL SELECT * FROM b) AS sub ON ... → ["a", "b"]
 func extractTablesFromQuery(query ast.QueryExpr) ([]string, error) {
+	tables, err := collectTablesFromQuery(query)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(tables))
+	unique := tables[:0]
+	for _, table := range tables {
+		if _, ok := seen[table]; ok {
+			continue
+		}
+		seen[table] = struct{}{}
+		unique = append(unique, table)
+	}
+	return unique, nil
+}
+
+func collectTablesFromQuery(query ast.QueryExpr) ([]string, error) {
 	switch q := query.(type) {
 	case *ast.Select:
 		if q.From == nil {
