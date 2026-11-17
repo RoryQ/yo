@@ -1,0 +1,24 @@
+JoinView
+  base tables: Items, Owners
+  primary key: OwnerID, ItemID
+JoinedToSubqueryView
+  base tables: Items, Items, ArchivedItems, Items, ArchivedItems
+  primary key: OwnerID, ItemID
+NestedView
+  base tables: PlainView
+  primary key: OwnerID, ItemID
+OrderedView
+  base tables: Items
+  primary key: OwnerID, ItemID
+PlainView
+  base tables: Items
+  primary key: OwnerID, ItemID
+SubqueryFirstView
+  base tables: ArchivedItems, Owners
+  primary key: OwnerID, ArchiveID
+SubqueryOverViewView
+  base tables: NestedView
+  primary key: OwnerID, ItemID
+UnionKeysView
+  base tables: Items, ArchivedItems
+  primary key: OwnerID, ItemID

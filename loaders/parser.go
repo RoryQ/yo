@@ -262,27 +262,72 @@ func (s *SpannerLoaderFromDDL) primaryKeyColumnList(table string) ([]*models.Ind
 	return cols, nil
 }
 
+// baseTablesForViewDDL returns the tables that the view reads, in the order of its FROM clause.
+// A subquery in the FROM clause contributes the tables it reads, in place.
 func baseTablesForViewDDL(ddlString string) ([]string, error) {
 	p := &parser.Parser{Lexer: &parser.Lexer{File: &token.File{Buffer: ddlString}}}
 	ddl, err := p.ParseDDL()
 	if err != nil {
 		return nil, err
 	}
-	from := ddl.(*ast.CreateView).Query.(*ast.Select).From.Source
+	view, ok := ddl.(*ast.CreateView)
+	if !ok {
+		return nil, fmt.Errorf("statement should be CreateView, but got %T", ddl)
+	}
 
-	return extractTablesFromSource(from)
+	return extractTablesFromQuery(view.Query)
+}
+
+// extractTablesFromQuery extracts the tables of the FROM clauses of a query.
+// For *ast.Select: Extracts the tables of its FROM clause, none when it has no FROM clause.
+// For *ast.SubQuery: Extracts the tables of the parenthesized query.
+// For *ast.CompoundQuery: Extracts the tables of each query of the UNION, INTERSECT or EXCEPT, in order.
+// For *ast.Query: Extracts the tables of the query under its ORDER BY and LIMIT clauses.
+// A WITH clause is an error, because Spanner does not support it in view definitions.
+// SELECT * FROM (SELECT * FROM a UNION ALL SELECT * FROM b) → ["a", "b"]
+func extractTablesFromQuery(query ast.QueryExpr) ([]string, error) {
+	switch q := query.(type) {
+	case *ast.Select:
+		if q.From == nil {
+			return nil, nil
+		}
+		return extractTablesFromSource(q.From.Source)
+	case *ast.SubQuery:
+		return extractTablesFromQuery(q.Query)
+	case *ast.CompoundQuery:
+		var tables []string
+		for _, sub := range q.Queries {
+			subTables, err := extractTablesFromQuery(sub)
+			if err != nil {
+				return nil, err
+			}
+			tables = append(tables, subTables...)
+		}
+		return tables, nil
+	case *ast.Query:
+		if q.With != nil {
+			return nil, fmt.Errorf("WITH clauses are unsupported in view definitions")
+		}
+		return extractTablesFromQuery(q.Query)
+	default:
+		return nil, fmt.Errorf("unknown query type: %T", query)
+	}
 }
 
 // extractTablesFromSource recursively extracts tables from the AST.
 // For *ast.TableName: Returns the table name (base case).
+// For *ast.SubQueryTableExpr: Returns the tables that the subquery reads.
 // For *ast.Join: Recursively extracts tables from both the left and right sides of the join, then combines them.
 // This handles nested joins (e.g., A JOIN B JOIN C).
 // SELECT * FROM orders JOIN customers ON ... → ["orders", "customers"]
 // SELECT * FROM a JOIN b JOIN c ON ... → ["a", "b", "c"]
+// SELECT * FROM a JOIN (SELECT * FROM b) AS sub ON ... → ["a", "b"]
 func extractTablesFromSource(source ast.TableExpr) ([]string, error) {
 	switch t := source.(type) {
 	case *ast.TableName:
 		return []string{t.Table.Name}, nil
+	case *ast.SubQueryTableExpr:
+		return extractTablesFromQuery(t.Query)
 	case *ast.Join:
 		var tables []string
 
