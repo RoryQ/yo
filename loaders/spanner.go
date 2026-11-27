@@ -297,6 +297,7 @@ func spanTableColumns(client *spanner.Client, table string) ([]*models.Column, e
 		`	AND ic.COLUMN_NAME = c.COLUMN_NAME` +
 		`	AND ic.OPTION_NAME = "allow_commit_timestamp"` +
 		`) IS_ALLOW_COMMIT_TIMESTAMP,` +
+		`c.COLUMN_DEFAULT IS NOT NULL AS HAS_DEFAULT ` +
 		`FROM INFORMATION_SCHEMA.COLUMNS c ` +
 		`WHERE c.TABLE_SCHEMA = "" AND c.TABLE_NAME = @table ` +
 		`ORDER BY c.ORDINAL_POSITION`
@@ -346,6 +347,9 @@ func spanTableColumns(client *spanner.Client, table string) ([]*models.Column, e
 			return nil, err
 		}
 		if err := row.ColumnByName("IS_ALLOW_COMMIT_TIMESTAMP", &c.IsAllowCommitTimestamp); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("HAS_DEFAULT", &c.HasDefault); err != nil {
 			return nil, err
 		}
 

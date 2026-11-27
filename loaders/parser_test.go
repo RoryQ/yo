@@ -253,6 +253,39 @@ CREATE VIEW ViewB SQL SECURITY INVOKER AS SELECT x FROM ViewA;`)
 	})
 }
 
+func Test_columnListHasDefault(t *testing.T) {
+	loader := ddlLoader(t, `
+CREATE TABLE Defaults (
+  ID INT64 NOT NULL,
+  Plain STRING(36),
+  WithDefault TIMESTAMP DEFAULT (TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)),
+  NotNullWithDefault INT64 NOT NULL DEFAULT (1),
+  Generated STRING(MAX) AS (CONCAT(Plain, "x")) STORED,
+) PRIMARY KEY (ID);`)
+
+	cols, err := loader.ColumnList("Defaults")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := make(map[string]bool, len(cols))
+	for _, c := range cols {
+		got[c.ColumnName] = c.HasDefault
+	}
+	// A generated column has an expression and not a default, so it is not one of the columns that can be left to the
+	// database.
+	want := map[string]bool{
+		"ID":                 false,
+		"Plain":              false,
+		"WithDefault":        true,
+		"NotNullWithDefault": true,
+		"Generated":          false,
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("HasDefault (-got, +want)\n%s", diff)
+	}
+}
+
 func ddlLoader(t *testing.T, ddl string) *SpannerLoaderFromDDL {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "schema.sql")

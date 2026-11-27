@@ -670,6 +670,29 @@ func TestAllowCommitTimestamp(t *testing.T) {
 	})
 }
 
+func TestColumnDefault(t *testing.T) {
+	cols, err := loaders.SpanTableColumns(client, "ColumnDefaults")
+	if err != nil {
+		t.Fatalf("SpanTableColumns failed: %v", err)
+	}
+
+	got := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		got[col.ColumnName] = col.HasDefault
+	}
+	// A generated column has an expression and not a default.
+	want := map[string]bool{
+		"ID":                 false,
+		"Plain":              false,
+		"WithDefault":        true,
+		"NotNullWithDefault": true,
+		"Generated":          false,
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("HasDefault (-want, +got)\n%s", diff)
+	}
+}
+
 func TestGeneratedColumn(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

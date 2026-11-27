@@ -122,6 +122,14 @@ CREATE TABLE AllowCommitTimestamp (
   UpdatedAt TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)
 ) PRIMARY KEY(ID);
 
+CREATE TABLE ColumnDefaults (
+  ID INT64 NOT NULL,
+  Plain STRING(36),
+  WithDefault TIMESTAMP DEFAULT (TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)),
+  NotNullWithDefault INT64 NOT NULL DEFAULT (1),
+  Generated STRING(100) AS (CONCAT(Plain, "x")) STORED,
+) PRIMARY KEY (ID);
+
 CREATE TABLE FullTextSearch (
   ID INT64 NOT NULL,
   Content STRING(2048) NOT NULL,

@@ -41,6 +41,7 @@ type Column struct {
 	IsGenerated            bool   // is_generated
 	IsHidden               bool   // is_hidden
 	IsAllowCommitTimestamp bool   // is_allow_commit_timestamp
+	HasDefault             bool   // has_default, true for a column with a DEFAULT expression, not for a generated column
 }
 
 // Index represents an index.
