@@ -143,6 +143,8 @@ func (s *SpannerLoaderFromDDL) ColumnList(name string) ([]*models.Column, error)
 			isGenerated = true
 		}
 
+		_, hasDefault := c.DefaultSemantics.(*ast.ColumnDefaultExpr)
+
 		allowCommitTimestamp := false
 		if c.Options != nil {
 			for _, r := range c.Options.Records {
@@ -166,6 +168,7 @@ func (s *SpannerLoaderFromDDL) ColumnList(name string) ([]*models.Column, error)
 			IsGenerated:            isGenerated,
 			IsHidden:               !c.Hidden.Invalid(),
 			IsAllowCommitTimestamp: allowCommitTimestamp,
+			HasDefault:             hasDefault,
 		})
 	}
 
